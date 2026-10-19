@@ -1,0 +1,3 @@
+-t=int -t=intal -123
+
+=octalf=octal -123

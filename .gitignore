@@ -1,0 +1,9 @@
+afl_in
+afl_out
+fuzzer_bin
+fuzzer_cover
+cp
+tt.c
+binar.c
+cb.c
+cb.h

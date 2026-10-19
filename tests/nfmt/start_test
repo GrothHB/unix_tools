@@ -1,0 +1,4 @@
+#!/bin/dash
+for file in 1 2 3 4 5; do
+	afl-fuzz -i - -o afl_out -S fuzzer_slave"$file" -x slownik.txt -- ./fuzzer_bin > /dev/null 2>&1 &
+done

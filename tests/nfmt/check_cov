@@ -1,0 +1,16 @@
+if ! [ -d "corpus" ]; then
+	mkdir corpus
+	AFL_USE_ASAN=1 afl-clang-fast -O0 -g ../../nfmt.c create_chaos.c -o fuzzer_bin
+	afl-cmin -i afl_out -o corpus -- ./fuzzer_bin
+	rm fuzzer_bin
+fi
+gcc -O0 -g --coverage -D__AFL_COMPILER ../../nfmt.c create_chaos.c -o cov_bin
+
+for file in ./corpus/id*; do
+	./cov_bin < "$file" > /dev/null 2>&1
+done
+
+gcov ../nfmt.c create_chaos.c > /dev/null 2>&1
+
+gcov *.gcno > doc.txt
+rm *.gcno *.gcda *.gcov cov_bin
