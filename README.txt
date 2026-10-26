@@ -1,40 +1,124 @@
+Unix Development Utilities
+
 DESCRIPTION:
-	This repository contains `nfmt', a numeric formatter, along
-	with script builded to manage codebase while writing it.
+        This repository contains `nfmt` (Numeric Formatter), a low-level CLI
+        utility for inspecting the exact memory representation of various C
+        data types.
+
+        The repository also includes custom development scripts (`c2h` and `gfunc`)
+        written in POSIX dash/awk, used to automate codebase management, header
+        generation, and function extraction during the development process.
 
 UTILITIES:
-	nfmt -t=<type> [-f=<fomrat>] num
+        NAME:
+                nfmt - numeric formatter
 
-	The `nfmt' is a acronym of `Number Formater'.
-	It converts numbers to different format like:
-		binary,
-		hex,
-		octal,
-		dec.
-	It includes types:
-		uint8_t - uint64_t,
-		int,
-		float,
-		double,
-		long double = `ldouble',
-		long int = `lint',
+                Usage: nfmt -t=<type> [-f=<format>] value
 
-	c2h file
+                Converts and displays the exact bitwise/byte representation of numbers.
+                Supported output formats: binary, hex, octal, dec.
+                Supported C types:
+                   - uint8   (uint8_t)
+                   - uint32  (uint32_t)
+                   - uint64  (uint64_t)
+                   - int     (int)
+                   - lint    (long int)
+                   - float   (float)
+                   - double  (double)
+                   - ldouble (long double)
 
-	It takes file.c and create corresponding .h file with declarations of
-	functions.
-	It will ask for permision is .h file already exists.
-	When .h file exists and contains struct/enum definitions,
-	it is safe to use. If it contains something more it may overwrite it.
+                EXAMPLE:
+                        $ nfmt -t=uint8 -f=octal 254
+                        OCTAL: 376
+                        $ nfmt -t=float -f=hex 42132.24124253340
+                        HEX: 4724943E
+                        $ nfmt -t=float -f=dec 0x4724943E
+                        DEC : 42132.242188
+                        (Note: The precision loss demonstrated here is an accurate 
+                        reflection of the 32-bit IEEE 754 float limits).
+			$ nfmt -t=float 0x4724943E
+                        BINAR: 01000111001001001001010000111110
+                        $ nfmt -t=float 42132.24124253340
+                        BINAR: 01000111001001001001010000111110
 
-	gfunc function_name file
+        NAME:
+                c2h - creator of .h files for function declarations and types
 
-	It will print at stdout the definition of function.
-	It isnt smart enought to understand limitation of 
-	function same so if there are more definitions of 
-	function_name* it will alsaw print it.
-TESTING:
-	The tests/nfmt/ directory contains the fuzzing environment setup.
-	It uses afl++ (afl-clang-fast) and ASAN to ensure memory safety.
-	Corpus minimization is done via afl-cmin.
-	Coverage is verified with gcov (>96% line coverage achieved).
+                Usage: c2h [-t] <file_without_extension>
+
+                A basic awk-based and shell C header generator. It parses a `.c` file and
+                automatically generates the corresponding `.h` header.
+                - Extracts and formats function prototypes.
+                - Extracts static function prototypes to the top of the .c file right under
+                  the last macro. It doesn't add a new line after appending.
+                - Detects and preserves `struct`, `enum`, `union`, and `typedef` definitions.
+                - Automatically injects missing `static` function declarations back into
+                  the top of the `.c` file based on macro boundary detection.
+                - Safely prompts before overwriting existing headers.
+
+                -t flag:
+                        Extracts all type definitions (`struct`, `enum`, `union`, and `typedef`)
+                        and creates a "{file_name}_types.h" file with the extracted types.
+
+                EXAMPLE:
+                        #include <stdio.h>
+                        #include <string.h>
+
+                        void *
+                        my_memcpy(void *dest, void* src, int byte_count)
+                        {
+                          char *s,*d;
+                          s = src;
+                          d = dest;
+
+                          while(byte_count--) {
+                            *d++ = *s++;
+                          }
+
+                          return dest;
+                        }
+
+                        int
+                        main(void)
+                        {
+                          int g[3]={11,33,55};
+                          int f[3];
+
+                          my_memcpy(f,g,3*sizeof(int));
+
+                          printf("%d\n", f[2]);
+
+                          return 0;
+                        }
+                $ c2h file
+                        #ifndef FILE_H
+                        #define FILE_H
+                        /* GENERATED BY `c2h', DO NOT CHANGE FILE */
+
+                        void                     *my_memcpy(void *, void *, int);
+
+                        #endif /* FILE_H */
+
+        NAME:
+                gfunc - function definition extractor
+
+                Usage: gfunc <function_name> <file_without_extension>
+
+                A lightweight grep-like utility for C code. It parses a `.c` file and
+                prints the full definition (signature and body) of the requested function
+                to stdout. Useful for quick code inspection without opening an editor.
+                NOTE: When the .c file includes definitions similar to the function
+                      provided as the first argument (function_name[a-zA-Z0-9_]*), it also
+                      prints them. The program is based on the style(9) formatting
+                      of functions, so other styles cause undefined behavior.
+
+TESTING & FUZZING:
+        The `tests/nfmt/` directory contains a rigorous fuzzing infrastructure
+        designed to test the CLI argument parser and type conversion logic.
+        - Fuzzer: AFL++ (`afl-clang-fast`).
+        - Instrumentation: Memory safety is enforced via AddressSanitizer (ASAN).
+        - Harness: The `main` function is mocked via macros to feed fuzzer entropy
+          directly into a tokenized `argv` array, simulating CLI execution.
+        - Coverage: Verified using `gcov`, achieving >96% line coverage across the
+          core parsing and dispatch logic. Corpus minimization was performed using
+          `afl-cmin`.

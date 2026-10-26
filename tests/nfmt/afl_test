@@ -1,6 +1,4 @@
 #!/bin/dash
-#rm -r afl_out
-# 2. Generowanie słownika (pomaga fuzzerowi omijać mutowanie samych flag)
 echo 'kw1="-t=uint8"' > slownik.txt
 echo 'kw2="-t=int"' >> slownik.txt
 echo 'kw3="-t=uint32"' >> slownik.txt
@@ -14,8 +12,6 @@ echo 'kw10="-f=octal"' >> slownik.txt
 echo 'kw11="-f=binar"' >> slownik.txt
 echo 'kw12="-f=dec"' >> slownik.txt
 
-# 3. Ziarna wejściowe (wstrzykujemy poprawne komendy z flagami, które Twój parser rozbije na argv)
-# Dodajemy na końcu znak nowej linii, bo to standardowe wejście terminala
 echo '-t=uint32 -f=hex 4000000000' > afl_in/seed_u32.txt
 echo >> afl_in/seed_u32.txt
 echo '-t=float -f=dec 123.456' > afl_in/seed_fl.txt
@@ -23,14 +19,9 @@ echo >> afl_in/seed_fl.txt
 echo  '-t=int -f=octal -123' > afl_in/seed_int.txt
 echo >> afl_in/seed_int.txt
 
-# 4. Kompilacja (AFL automatycznie nakłada instrumentację na bloki kodu)
 AFL_USE_ASAN=1 afl-clang-fast -O0 -g ../../nfmt.c create_chaos.c -o fuzzer_bin
 
-# 5. Uruchomienie na 2 rdzeniach
 #echo "Odpalam proces Slave w tle..."
 #afl-fuzz -i afl_in -o afl_out -S fuzzer_slave1 -x slownik.txt -- ./fuzzer_bin &
 
-#echo "Odpalam proces Master na pierwszym planie..."
-# Master zablokuje terminal i wyświetli klasyczny interfejs AFL. 
-# Kiedy go wyłączysz (Ctrl+C), pamiętaj by ręcznie zabić proces slave (pkill afl-fuzz).
 afl-fuzz -i - -o afl_out -M fuzzer_master -x slownik.txt -- ./fuzzer_bin
